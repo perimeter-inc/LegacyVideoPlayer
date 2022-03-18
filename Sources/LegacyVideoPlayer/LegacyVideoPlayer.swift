@@ -16,8 +16,12 @@ public struct LegacyVideoPlayer<Overlay: View>: UIViewControllerRepresentable {
     var overlay: () -> Overlay
     let url: URL
 
+    // MARK: - Callbacks
+    var onTimeControlStatusChange: ((AVPlayer.TimeControlStatus) -> Void)?
+
     @State var isPlaying = false
     @State var isLooping = false
+    @State var showsPlaybackControls = true
 
     public func makeCoordinator() -> CustomPlayerCoordinator<Overlay> {
         CustomPlayerCoordinator(customPlayer: self)
@@ -50,17 +54,21 @@ public struct LegacyVideoPlayer<Overlay: View>: UIViewControllerRepresentable {
         hostController.rootView = overlay()
     }
 
-    private func makeAVPlayer(in controller: AVPlayerViewController, context: UIViewControllerRepresentableContext<LegacyVideoPlayer>) {
+    private func makeAVPlayer(in controller: LegacyAVPlayerViewController, context: UIViewControllerRepresentableContext<LegacyVideoPlayer>) {
         if isLooping {
             let item = AVPlayerItem(url: url)
             let player = AVQueuePlayer(playerItem: item)
             let loopingPlayer = AVPlayerLooper(player: player, templateItem: item)
-
+            controller.videoGravity = AVLayerVideoGravity.resizeAspectFill
             context.coordinator.loopingPlayer = loopingPlayer
             controller.player = player
         } else {
             controller.player = AVPlayer(url: url)
         }
+
+        controller.showsPlaybackControls = showsPlaybackControls
+
+        controller.onPlayerStatusChange = onTimeControlStatusChange
     }
 
     private func playIfNeeded(_ player: AVPlayer?) {

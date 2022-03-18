@@ -10,6 +10,9 @@ import AVKit
 
 public class LegacyAVPlayerViewController: AVPlayerViewController {
 
+    // MARK: - Public Callbacks
+    var onPlayerStatusChange: ((AVPlayer.TimeControlStatus) -> Void)?
+
     var overlayViewController: UIViewController! {
         willSet { assert(overlayViewController == nil, "contentViewController should be set only once") }
         didSet { attach() }
@@ -41,4 +44,24 @@ public class LegacyAVPlayerViewController: AVPlayerViewController {
             overlayView.trailingAnchor.constraint(equalTo: overlay.trailingAnchor),
         ]
     }()
+
+    // MARK: - Rate observers
+
+    private var rateObserver: NSKeyValueObservation?
+
+    public override var player: AVPlayer? {
+        willSet { rateObserver?.invalidate() }
+        didSet { rateObserver = player?.observe(\AVPlayer.rate, options: [.new], changeHandler: rateHandler(_:change:)) }
+    }
+
+    deinit { rateObserver?.invalidate() }
+
+    private func rateHandler(_ player: AVPlayer, change: NSKeyValueObservedChange<Float>) {
+        guard let item = player.currentItem,
+              item.currentTime().seconds > 0.5,
+              player.status == .readyToPlay
+        else { return } // filter initial noise
+
+        onPlayerStatusChange?(player.timeControlStatus)
+    }
 }
